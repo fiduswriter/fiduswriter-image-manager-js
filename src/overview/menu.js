@@ -49,7 +49,7 @@ export const menuModel = () => ({
             title: gettext("Upload new image"),
             keys: "Alt-u",
             action: overview => {
-                import("../edit_dialog").then(({ImageEditDialog}) => {
+                import("../edit_dialog/index.js").then(({ImageEditDialog}) => {
                     const imageUpload = new ImageEditDialog(
                         overview.app.imageDB,
                         false,

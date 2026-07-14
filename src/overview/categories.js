@@ -6,7 +6,7 @@ import {
     gettext,
     postJson
 } from "fwtoolkit"
-import {usermediaEditcategoriesTemplate} from "./templates"
+import {usermediaEditcategoriesTemplate} from "./templates.js"
 
 export class ImageOverviewCategories {
     constructor(imageOverview) {

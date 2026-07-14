@@ -1,7 +1,7 @@
 import {CheckableList, ContentMenu, Dialog, addAlert, gettext} from "fwtoolkit"
 import {E2EEEncryptor} from "fwtoolkit/e2ee/encryptor"
-import {imageEditModel} from "./model"
-import {imageEditTemplate} from "./templates"
+import {imageEditModel} from "./model.js"
+import {imageEditTemplate} from "./templates.js"
 export class ImageEditDialog {
     constructor(imageDB, imageId = false, page) {
         this.imageDB = imageDB

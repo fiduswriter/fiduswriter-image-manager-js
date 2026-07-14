@@ -19,8 +19,8 @@ import {
     staticUrl,
     whenReady
 } from "fwtoolkit"
-import {ImageOverviewCategories} from "./categories"
-import {bulkMenuModel, menuModel} from "./menu"
+import {ImageOverviewCategories} from "./categories.js"
+import {bulkMenuModel, menuModel} from "./menu.js"
 /** Helper functions for user added images/SVGs.*/
 
 export class ImageOverview {
@@ -384,7 +384,7 @@ export class ImageOverview {
             }
             case findTarget(event, ".edit-image", el): {
                 const imageId = el.target.dataset.id
-                import("../edit_dialog").then(({ImageEditDialog}) => {
+                import("../edit_dialog/index.js").then(({ImageEditDialog}) => {
                     const dialog = new ImageEditDialog(
                         this.app.imageDB,
                         imageId,
