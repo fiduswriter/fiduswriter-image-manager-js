@@ -1,0 +1,53 @@
+{
+    "name": "@fiduswriter/image-manager",
+    "version": "0.1.0",
+    "description": "Fidus Writer image/media manager",
+    "repository": {
+        "type": "git",
+        "url": "ssh://git@codeberg.org/fiduswriter/fiduswriter-image-manager-js.git"
+    },
+    "license": "AGPL-3.0",
+    "author": "Johannes Wilm",
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        },
+        "./*": {
+            "types": "./dist/*.d.ts",
+            "default": "./dist/*.js"
+        }
+    },
+    "files": [
+        "dist/",
+        "src/",
+        "README.md",
+        "LICENSE"
+    ],
+    "scripts": {
+        "build": "tsc",
+        "prepare": "npm run build",
+        "prepublishOnly": "npm run build",
+        "typecheck": "tsc --noEmit",
+        "lint": "eslint src",
+        "lint:fix": "eslint src --fix",
+        "format": "prettier --write .",
+        "format:check": "prettier --check ."
+    },
+    "dependencies": {
+        "@fiduswriter/common": "^0.1.4",
+        "cropperjs": "^1.6.2",
+        "fwtoolkit": "^0.1.9"
+    },
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "eslint": "^10.6.0",
+        "globals": "^15.15.0",
+        "prettier": "^3.5.3",
+        "typescript": "^6.0.3",
+        "typescript-eslint": "^8.62.0"
+    }
+}
