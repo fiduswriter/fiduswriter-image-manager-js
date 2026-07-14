@@ -20,9 +20,37 @@
             "types": "./dist/*.d.ts",
             "default": "./dist/*.js"
         },
-        "./*/*": {
-            "types": "./dist/*/*.d.ts",
-            "default": "./dist/*/*.js"
+        "./copyright_dialog": {
+            "types": "./dist/copyright_dialog/index.d.ts",
+            "default": "./dist/copyright_dialog/index.js"
+        },
+        "./copyright_dialog/*": {
+            "types": "./dist/copyright_dialog/*.d.ts",
+            "default": "./dist/copyright_dialog/*.js"
+        },
+        "./edit_dialog": {
+            "types": "./dist/edit_dialog/index.d.ts",
+            "default": "./dist/edit_dialog/index.js"
+        },
+        "./edit_dialog/*": {
+            "types": "./dist/edit_dialog/*.d.ts",
+            "default": "./dist/edit_dialog/*.js"
+        },
+        "./overview": {
+            "types": "./dist/overview/index.d.ts",
+            "default": "./dist/overview/index.js"
+        },
+        "./overview/*": {
+            "types": "./dist/overview/*.d.ts",
+            "default": "./dist/overview/*.js"
+        },
+        "./selection_dialog": {
+            "types": "./dist/selection_dialog/index.d.ts",
+            "default": "./dist/selection_dialog/index.js"
+        },
+        "./selection_dialog/*": {
+            "types": "./dist/selection_dialog/*.d.ts",
+            "default": "./dist/selection_dialog/*.js"
         }
     },
     "files": [
