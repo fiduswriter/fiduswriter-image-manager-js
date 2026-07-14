@@ -1,7 +1,7 @@
 import Cropper from "cropperjs"
 
 import {gettext} from "fwtoolkit"
-import {CopyrightDialog} from "../../copyright_dialog/index.js"
+import {CopyrightDialog} from "@fiduswriter/image-manager/copyright_dialog/index"
 
 let mediaPreviewerImg = false
 
