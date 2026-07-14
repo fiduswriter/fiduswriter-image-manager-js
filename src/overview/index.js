@@ -78,7 +78,7 @@ export class ImageOverview {
         }
         this.pluginsActivated = true
         // Add plugins.
-        this.plugins = {}
+        const pluginInstances = {}
 
         return Promise.all(
             this.plugins.map(([app, plugin]) => {
@@ -88,11 +88,11 @@ export class ImageOverview {
                 return Promise.all(
                     Object.values(plugin).map(pluginExport => {
                         if (typeof pluginExport === "function") {
-                            this.plugins[pluginExport.name] = new pluginExport(
+                            pluginInstances[pluginExport.name] = new pluginExport(
                                 this
                             )
                             return (
-                                this.plugins[pluginExport.name].init() ||
+                                pluginInstances[pluginExport.name].init() ||
                                 Promise.resolve()
                             )
                         }
