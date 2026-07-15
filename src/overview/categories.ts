@@ -6,39 +6,51 @@ import {
     gettext,
     postJson
 } from "fwtoolkit"
+import type {OverviewMenuDropdownItem} from "fwtoolkit/overview_menu"
+
 import {usermediaEditcategoriesTemplate} from "./templates.js"
+import type {ImageOverview} from "./index.js"
+import type {
+    ImageCategory,
+    SaveCategoriesRequest,
+    SaveCategoriesResponse
+} from "../types.js"
 
 export class ImageOverviewCategories {
-    constructor(imageOverview) {
+    imageOverview: ImageOverview
+
+    constructor(imageOverview: ImageOverview) {
         this.imageOverview = imageOverview
         imageOverview.mod.categories = this
     }
 
     //save changes or create a new category
-    saveCategories(cats) {
+    saveCategories(cats: SaveCategoriesRequest): void {
         activateWait()
 
-        postJson("/api/usermedia/save_category/", {
-            ids: cats.ids,
-            titles: cats.titles
-        })
+        postJson("/api/usermedia/save_category/", cats as unknown as Record<string, unknown>)
             .catch(error => {
                 addAlert("error", gettext("Could not update categories"))
                 deactivateWait()
                 throw error
             })
             .then(({json}) => {
-                this.imageOverview.app.imageDB.cats = json.entries
-                this.setImageCategoryList(json.entries)
+                const response = json as SaveCategoriesResponse
+                this.imageOverview.app.imageDB.cats = response.entries
+                this.setImageCategoryList(response.entries)
                 addAlert("success", gettext("The categories have been updated"))
                 deactivateWait()
             })
     }
 
-    setImageCategoryList(imageCategories) {
+    setImageCategoryList(imageCategories: ImageCategory[]): void {
         const catSelector = this.imageOverview.menu.model.content.find(
-            menuItem => menuItem.id === "cat_selector"
+            (menuItem): menuItem is OverviewMenuDropdownItem =>
+                menuItem.id === "cat_selector"
         )
+        if (!catSelector) {
+            return
+        }
         catSelector.content = catSelector.content.filter(
             cat => cat.type !== "category"
         )
@@ -46,19 +58,19 @@ export class ImageOverviewCategories {
             imageCategories.map(cat => ({
                 type: "category",
                 title: cat.category_title,
-                action: _overview => {
+                action: (_overview: unknown) => {
                     const trs = document.querySelectorAll(
                         "#imagelist > tbody > tr"
                     )
                     trs.forEach(tr => {
+                        const imageCell = tr.querySelector(".fw-usermedia-image")
                         if (
-                            tr
-                                .querySelector(".fw-usermedia-image")
-                                .classList.contains(`cat_${cat.id}`)
+                            imageCell &&
+                            imageCell.classList.contains(`cat_${cat.id}`)
                         ) {
-                            tr.style.display = ""
+                            ;(tr as HTMLElement).style.display = ""
                         } else {
-                            tr.style.display = "none"
+                            ;(tr as HTMLElement).style.display = "none"
                         }
                     })
                 }
@@ -68,21 +80,22 @@ export class ImageOverviewCategories {
     }
 
     //open a dialog for editing categories
-    editCategoryDialog() {
+    editCategoryDialog(): void {
         const buttons = [
             {
                 text: gettext("Submit"),
                 classes: "fw-dark",
                 click: () => {
-                    const cats = {
+                    const cats: SaveCategoriesRequest = {
                         ids: [],
                         titles: []
                     }
                     document
                         .querySelectorAll("#edit-categories .category-form")
                         .forEach(el => {
-                            const thisVal = el.value.trim()
-                            let thisId = el.dataset.id
+                            const input = el as HTMLInputElement
+                            const thisVal = input.value.trim()
+                            let thisId: string | number = input.dataset.id || "0"
                             if ("undefined" == typeof thisId) {
                                 thisId = 0
                             }
@@ -96,7 +109,7 @@ export class ImageOverviewCategories {
                 }
             },
             {
-                type: "cancel"
+                type: "cancel" as const
             }
         ]
 

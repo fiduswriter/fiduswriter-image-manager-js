@@ -1,80 +1,113 @@
 import {Dialog, SelectionDataTable, cancelPromise, escapeText, gettext} from "fwtoolkit"
+import type {DialogButtonSpec} from "fwtoolkit/basic"
+import type {DataTable} from "simple-datatables"
+
+import type {ImageDB} from "../database.js"
+import type {
+    ImageManagerPage,
+    ImageSelectionItem
+} from "../types.js"
 
 export class ImageSelectionDialog {
-    constructor(imageDB, userImageDB, imgId, page) {
+    imageDB: ImageDB
+
+    userImageDB: ImageDB
+
+    page: ImageManagerPage
+
+    imgId: number | false
+
+    imgDb: "document" | "user" = "document"
+
+    images: ImageSelectionItem[] = []
+
+    imageDialog!: Dialog
+
+    selectionTable!: SelectionDataTable
+
+    table: DataTable | null = null
+
+    constructor(
+        imageDB: ImageDB,
+        userImageDB: ImageDB,
+        imgId: number | false,
+        page: ImageManagerPage
+    ) {
         this.imageDB = imageDB
         this.userImageDB = userImageDB
         this.page = page
         this.imgId = imgId // a preselected image
-        this.imgDb = "document" // the preselection image will always come from the document
+        // the preselection image will always come from the document
         this.images = [] // images from both databases
     }
 
-    isE2EE() {
+    isE2EE(): boolean {
         return this.page.e2ee?.encrypted === true
     }
 
-    init() {
+    init(): Promise<unknown> {
         console.log(
             "DEBUG selection init: docImages=",
             Object.keys(this.imageDB.db).length,
             "userImages=",
             Object.keys(this.userImageDB.db).length
         )
-        this.images = Object.values(this.imageDB.db).map(image => {
-            return {
-                image,
-                db: "document"
-            }
-        })
+        this.images = Object.values(this.imageDB.db).map(image => ({
+            image,
+            db: "document" as const
+        }))
         Object.values(this.userImageDB.db).forEach(image => {
             if (this.imageDB.db[image.id]) {
                 return
             }
             this.images.push({
                 image,
-                db: "user"
+                db: "user" as const
             })
         })
         console.log("DEBUG selection images=", this.images.length)
-        const buttons = []
+        const buttons: DialogButtonSpec[] = []
         const p = new Promise(resolve => {
             if (!this.page.app.isOffline()) {
                 buttons.push({
                     text: gettext("Add new image"),
                     icon: "plus-circle",
                     click: () => {
-                        import("../edit_dialog/index.js").then(({ImageEditDialog}) => {
-                            const targetDB = this.isE2EE()
-                                ? this.imageDB
-                                : this.userImageDB
-                            const imageUpload = new ImageEditDialog(
-                                targetDB,
-                                false,
-                                this.page
-                            )
+                        import("../edit_dialog/index.js").then(
+                            ({ImageEditDialog}) => {
+                                const targetDB = this.isE2EE()
+                                    ? this.imageDB
+                                    : this.userImageDB
+                                const imageUpload = new ImageEditDialog(
+                                    targetDB,
+                                    false,
+                                    this.page
+                                )
 
-                            resolve(
-                                imageUpload.init().then(imageId => {
-                                    console.log(
-                                        "DEBUG upload resolved imageId=",
-                                        imageId
-                                    )
-                                    this.imgId = imageId
-                                    // For E2EE docs the image goes straight
-                                    // into the document DB, not the user's.
-                                    this.imgDb = this.isE2EE()
-                                        ? "document"
-                                        : "user"
-                                    console.log(
-                                        "DEBUG closing selection dialog"
-                                    )
-                                    this.imageDialog.close()
-                                    console.log("DEBUG reinit selection dialog")
-                                    return this.init()
-                                })
-                            )
-                        })
+                                resolve(
+                                    imageUpload.init().then(imageId => {
+                                        console.log(
+                                            "DEBUG upload resolved imageId=",
+                                            imageId
+                                        )
+                                        this.imgId = imageId || false
+                                        // For E2EE docs the image goes straight
+                                        // into the document DB, not the user's.
+                                        this.imgDb = this.isE2EE()
+                                            ? "document"
+                                            : "user"
+                                        console.log(
+                                            "DEBUG closing selection dialog"
+                                        )
+                                        this.imageDialog.close()
+                                        console.log(
+                                            "DEBUG reinit selection dialog"
+                                        )
+                                        return this.init()
+                                    })
+                                )
+                            }
+                        )
                     }
                 })
             }
@@ -89,7 +122,7 @@ export class ImageSelectionDialog {
             })
 
             buttons.push({
-                type: "cancel",
+                type: "cancel" as const,
                 click: () => {
                     this.imageDialog.close()
                     resolve(cancelPromise())
@@ -109,14 +142,17 @@ export class ImageSelectionDialog {
         return p
     }
 
-    initTable() {
+    initTable(): void {
         /* Initialize the overview table */
         const tableEl = document.createElement("table")
         tableEl.classList.add("fw-data-table")
         tableEl.classList.add("fw-small")
         const host = this.imageDialog.dialogEl.querySelector(
             "div.image-selection-table"
-        )
+        ) as HTMLElement | null
+        if (!host) {
+            return
+        }
         host.innerHTML = ""
         host.appendChild(tableEl)
 
@@ -154,17 +190,17 @@ export class ImageSelectionDialog {
                 if (selected.length) {
                     const [db, id] = String(selected[0]).split("-")
                     this.imgId = Number.parseInt(id)
-                    this.imgDb = db
+                    this.imgDb = db as "document" | "user"
                 } else {
                     this.imgId = false
                 }
             }
         })
         this.selectionTable.init()
-        this.table = this.selectionTable.table
+        this.table = this.selectionTable.table!
     }
 
-    createTableRow(image) {
+    createTableRow(image: ImageSelectionItem): [string, string, string] {
         return [
             `${image.db}-${image.image.id}`,
             image.image.thumbnail === undefined

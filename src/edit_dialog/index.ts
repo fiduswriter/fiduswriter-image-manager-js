@@ -1,13 +1,48 @@
 import {CheckableList, ContentMenu, Dialog, addAlert, gettext} from "fwtoolkit"
+import type {CheckableListOptions} from "fwtoolkit"
+import type {ContentMenuInit} from "fwtoolkit/content_menu"
 import {E2EEEncryptor} from "fwtoolkit/e2ee/encryptor"
+
 import {imageEditModel} from "./model.js"
 import {imageEditTemplate} from "./templates.js"
+import type {ImageDB} from "../database.js"
+import type {
+    Copyright,
+    Image,
+    ImageCategory,
+    ImageManagerPage,
+    SaveImageRequest
+} from "../types.js"
+
 export class ImageEditDialog {
-    constructor(imageDB, imageId = false, page) {
+    imageDB: ImageDB
+
+    page: ImageManagerPage
+
+    imageId: number | false
+
+    dialog: Dialog | false = false
+
+    copyright: Copyright
+
+    menu: ContentMenuInit
+
+    catsList: CheckableList | {value: (string | number)[]} = {value: []}
+
+    mediaPreviewerDiv?: HTMLElement
+
+    mediaPreviewer?: HTMLElement
+
+    rotation = 0
+
+    cropped = false
+
+    mediaInput?: File
+
+    constructor(imageDB: ImageDB, imageId: number | false = false, page: ImageManagerPage) {
         this.imageDB = imageDB
         this.page = page
         this.imageId = imageId
-        this.dialog = false
         this.copyright = this.imageId
             ? this.imageDB.db[this.imageId].copyright
             : {
@@ -16,17 +51,20 @@ export class ImageEditDialog {
                   freeToRead: true,
                   licenses: []
               }
-        this.menu = this.page.menu?.imageEditModel || imageEditModel()
+        this.menu =
+            (this.page.menu as {imageEditModel?: ContentMenuInit} | undefined)
+                ?.imageEditModel || imageEditModel()
     }
 
     //open a dialog for uploading an image
-    init() {
+    init(): Promise<number | void> {
         if (this.page.app.isOffline()) {
             this.showOffline()
             return Promise.resolve()
         }
-        const returnPromise = new Promise(resolve => {
-            this.dialog = new Dialog({
+        const returnPromise = new Promise<number | void>(resolve => {
+            let dialog: Dialog
+            dialog = new Dialog({
                 title: this.imageId
                     ? gettext("Update Image Information")
                     : gettext("Upload Image"),
@@ -47,25 +85,29 @@ export class ImageEditDialog {
                     {
                         type: "cancel",
                         classes: "fw-orange",
-                        click: () => this.dialog.close()
+                        click: () => dialog.close()
                     }
                 ]
             })
-            this.dialog.open()
+            this.dialog = dialog
+            dialog.open()
         })
 
-        const image = this.imageId ? this.imageDB.db[this.imageId] : false
+        const image: Image | false = this.imageId
+            ? this.imageDB.db[this.imageId]
+            : false
         const catsEl = document.getElementById("image-edit-categories")
         if (catsEl) {
-            this.catsList = new CheckableList({
+            const checkableOptions: CheckableListOptions = {
                 dom: catsEl,
-                options: this.imageDB.cats.map(cat => ({
+                options: this.imageDB.cats.map((cat: ImageCategory) => ({
                     id: cat.id,
                     label: cat.category_title
                 })),
                 initialValue: image ? image.cats : [],
                 multiple: true
-            })
+            }
+            this.catsList = new CheckableList(checkableOptions)
         } else {
             this.catsList = {value: []}
         }
@@ -74,9 +116,9 @@ export class ImageEditDialog {
             this.bindMediaUploadEvents()
         }
 
-        document
-            .querySelector(".figure-edit-menu")
-            .addEventListener("click", event => {
+        const figureEditMenu = document.querySelector(".figure-edit-menu")
+        if (figureEditMenu) {
+            figureEditMenu.addEventListener("click", event => {
                 event.preventDefault()
                 event.stopImmediatePropagation()
 
@@ -84,75 +126,95 @@ export class ImageEditDialog {
                     menu: this.menu,
                     width: 220,
                     page: this,
-                    menuPos: {X: event.pageX - 50, Y: event.pageY + 50}
+                    menuPos: {X: (event as MouseEvent).pageX - 50, Y: (event as MouseEvent).pageY + 50}
                 })
                 contentMenu.open()
             })
+        }
 
         return returnPromise
     }
 
     //add image upload events
-    bindMediaUploadEvents() {
+    bindMediaUploadEvents(): void {
         const selectButton = document.querySelector(
                 "#editimage .fw-media-select-button"
-            ),
+            ) as HTMLButtonElement | null,
             mediaInputSelector = document.querySelector(
                 "#editimage .fw-media-file-input"
-            )
+            ) as HTMLInputElement | null
         this.mediaPreviewerDiv = document.querySelector(
             "#editimage .figure-preview > div"
-        )
+        ) as HTMLElement | null || undefined
         this.rotation = 0
         this.cropped = false
+
+        if (!selectButton || !mediaInputSelector || !this.mediaPreviewerDiv) {
+            return
+        }
 
         selectButton.addEventListener("click", () => {
             mediaInputSelector.click()
         })
 
+        const dialog = this.dialog
+        if (!dialog) {
+            return
+        }
+
         mediaInputSelector.addEventListener("change", () => {
-            this.mediaInput = mediaInputSelector.files[0]
+            this.mediaInput = mediaInputSelector.files![0]
             const fr = new window.FileReader()
             fr.onload = () => {
-                this.mediaPreviewerDiv.innerHTML = `<div class="img" style="background-image: url(${fr.result});" />`
+                this.mediaPreviewerDiv!.innerHTML = `<div class="img" style="background-image: url(${fr.result});" />`
                 this.mediaPreviewer =
-                    this.mediaPreviewerDiv.querySelector(".img")
-                this.mediaPreviewerDiv.classList.remove("crop-mode")
-                this.dialog.centerDialog()
+                    this.mediaPreviewerDiv!.querySelector(".img") || undefined
+                this.mediaPreviewerDiv!.classList.remove("crop-mode")
+                dialog.centerDialog()
             }
             fr.readAsDataURL(this.mediaInput)
         })
     }
 
-    displayCreateImageError(errors) {
+    displayCreateImageError(errors: Record<string, string>): void {
         Object.keys(errors).forEach(eKey => {
             const eMsg = `<div class="fw-warning">${errors[eKey]}</div>`
             if ("error" == eKey) {
                 document
-                    .getElementById("editimage")
+                    .getElementById("editimage")!
                     .insertAdjacentHTML("afterbegin", eMsg)
             } else {
-                document
-                    .getElementById(`id_${eKey}`)
-                    .insertAdjacentHTML("afterend", eMsg)
+                const fieldEl = document.getElementById(`id_${eKey}`)
+                if (fieldEl) {
+                    fieldEl.insertAdjacentHTML("afterend", eMsg)
+                }
             }
         })
     }
 
-    async saveImage() {
-        const imageData = {
-            title: document.querySelector("#editimage .fw-media-title").value,
+    async saveImage(): Promise<number | void> {
+        const titleInput = document.querySelector(
+            "#editimage .fw-media-title"
+        ) as HTMLInputElement | null
+        const imageData: SaveImageRequest = {
+            title: titleInput ? titleInput.value : "",
             copyright: this.copyright,
             cats: this.catsList.value
         }
         if (this.imageId) {
             imageData.id = this.imageId
-        } else if (!this.rotation && !this.cropped) {
+        } else if (!this.rotation && !this.cropped && this.mediaInput) {
             imageData.image = this.mediaInput
-        } else {
+        } else if (this.mediaPreviewer && this.mediaInput) {
+            const mediaPreviewer = this.mediaPreviewer as HTMLElement & {
+                currentStyle?: CSSStyleDeclaration
+            }
             const mediaPreviewerStyle =
-                this.mediaPreviewer.currentStyle ||
-                window.getComputedStyle(this.mediaPreviewer, false)
+                mediaPreviewer.currentStyle ||
+                window.getComputedStyle(
+                    mediaPreviewer,
+                    false as unknown as string | null
+                )
             const base64data = mediaPreviewerStyle.backgroundImage
                 .slice(4, -1)
                 .replace(/"/g, "")
@@ -171,25 +233,28 @@ export class ImageEditDialog {
         const isE2EE = this.page.e2ee?.encrypted === true
         if (isE2EE && imageData.image) {
             imageData.image = await E2EEEncryptor.encryptImage(
-                imageData.image,
-                this.page.e2ee.key
+                imageData.image as File | Blob,
+                this.page.e2ee!.key
             )
             imageData.original_file_type = this.mediaInput?.type || "image/png"
             // Encrypt copyright metadata so the server cannot read it
             imageData.copyright = await E2EEEncryptor.encryptObject(
                 imageData.copyright,
-                this.page.e2ee.key
+                this.page.e2ee!.key
             )
         }
 
         // Remove old warning messages
         document
             .querySelectorAll("#editimage .fw-warning")
-            .forEach(el => el.parentElement.removeChild(el))
-        return new Promise(resolve => {
+            .forEach(el => el.parentElement!.removeChild(el))
+        return new Promise<number | void>(resolve => {
+            const dialog = this.dialog
             this.imageDB.saveImage(imageData).then(
                 imageId => {
-                    this.dialog.close()
+                    if (dialog) {
+                        dialog.close()
+                    }
                     addAlert("success", gettext("The image has been updated."))
                     this.imageId = imageId
                     resolve(imageId)
@@ -199,7 +264,7 @@ export class ImageEditDialog {
                         this.showOffline()
                         return
                     }
-                    this.displayCreateImageError(errors)
+                    this.displayCreateImageError(errors as Record<string, string>)
                     addAlert(
                         "error",
                         gettext(
@@ -211,7 +276,7 @@ export class ImageEditDialog {
         })
     }
 
-    showOffline() {
+    showOffline(): void {
         addAlert(
             "info",
             gettext(

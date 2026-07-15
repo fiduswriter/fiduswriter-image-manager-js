@@ -1,7 +1,19 @@
 import {escapeText} from "fwtoolkit"
 
+import type {ImageCategory} from "../types.js"
+
+interface CategoryFormsTemplateData {
+    categories: ImageCategory[]
+}
+
+interface EditcategoriesTemplateData {
+    categories: ImageCategory[]
+}
+
 /** A template for the image category edit form. */
-const usermediaCategoryformsTemplate = ({categories}) =>
+const usermediaCategoryformsTemplate = ({
+    categories
+}: CategoryFormsTemplateData) =>
     `${categories
         .map(
             cat =>
@@ -22,7 +34,9 @@ const usermediaCategoryformsTemplate = ({categories}) =>
     </tr>`
 
 /** A template to edit image categories. */
-export const usermediaEditcategoriesTemplate = ({categories}) =>
+export const usermediaEditcategoriesTemplate = ({
+    categories
+}: EditcategoriesTemplateData) =>
     `<table id="editCategoryList" class="fw-dialog-table">
         <tbody>
             ${usermediaCategoryformsTemplate({categories})}

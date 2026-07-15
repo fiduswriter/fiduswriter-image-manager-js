@@ -19,12 +19,67 @@ import {
     staticUrl,
     whenReady
 } from "fwtoolkit"
+import type {DataTable} from "simple-datatables"
+
 import {ImageOverviewCategories} from "./categories.js"
 import {bulkMenuModel, menuModel} from "./menu.js"
+import type {
+    ImageManagerApp,
+    ImageManagerPage,
+    ImageOverviewPlugin,
+    ImageOverviewPluginConstructor,
+    ImageTableRow
+} from "../types.js"
+
+interface DataTableRow {
+    cells: {data: unknown; text?: string}[]
+}
+
+interface VirtualNode {
+    nodeName: string
+    attributes?: Record<string, string | boolean>
+    childNodes?: VirtualNode[]
+}
+
 /** Helper functions for user added images/SVGs.*/
 
 export class ImageOverview {
-    constructor({app, user, plugins = []}) {
+    app: ImageManagerApp
+
+    user: unknown
+
+    plugins: [string, Record<string, ImageOverviewPluginConstructor>][]
+
+    mod: {
+        categories?: ImageOverviewCategories
+    }
+
+    lastSort: {
+        column: number
+        dir: "asc" | "desc"
+    }
+
+    pluginsActivated = false
+
+    dom!: HTMLBodyElement
+
+    menu!: OverviewMenuView
+
+    overviewTable: OverviewDataTable | null = null
+
+    table: DataTable | null = null
+
+    dtBulk: import("fwtoolkit").DatatableBulk | null = null
+
+    constructor({
+        app,
+        user,
+        plugins = []
+    }: {
+        app: ImageManagerApp
+        user: unknown
+        plugins?: [string, Record<string, ImageOverviewPluginConstructor>][]
+    }) {
         this.app = app
         this.user = user
         this.plugins = plugins
@@ -33,7 +88,7 @@ export class ImageOverview {
         this.lastSort = {column: 0, dir: "asc"}
     }
 
-    init() {
+    init(): Promise<void> {
         ensureCSS([
             staticUrl("css/dialog_usermedia.css"),
             staticUrl("css/dot_menu.css")
@@ -48,7 +103,7 @@ export class ImageOverview {
             this.menu.init()
             this.activatePlugins()
             this.bindEvents()
-            this.mod.categories.setImageCategoryList(this.app.imageDB.cats)
+            this.mod.categories!.setImageCategoryList(this.app.imageDB.cats)
             this.initTable(Object.keys(this.app.imageDB.db))
             // Reset scroll position to top to prevent Safari from auto-scrolling
             // to the focused table element, which would hide the header/menu
@@ -56,7 +111,7 @@ export class ImageOverview {
         })
     }
 
-    render() {
+    render(): void {
         this.dom = document.createElement("body")
         this.dom.innerHTML = baseBodyTemplate({
             contents: "",
@@ -71,14 +126,14 @@ export class ImageOverview {
         feedbackTab.init()
     }
 
-    activatePlugins() {
+    activatePlugins(): Promise<void> {
         if (this.pluginsActivated) {
             // Plugins have been activated already
-            return
+            return Promise.resolve()
         }
         this.pluginsActivated = true
         // Add plugins.
-        const pluginInstances = {}
+        const pluginInstances: Record<string, ImageOverviewPlugin> = {}
 
         return Promise.all(
             this.plugins.map(([app, plugin]) => {
@@ -88,11 +143,10 @@ export class ImageOverview {
                 return Promise.all(
                     Object.values(plugin).map(pluginExport => {
                         if (typeof pluginExport === "function") {
-                            pluginInstances[pluginExport.name] = new pluginExport(
-                                this
-                            )
+                            const Plugin = pluginExport as ImageOverviewPluginConstructor
+                            pluginInstances[Plugin.name] = new Plugin(this)
                             return (
-                                pluginInstances[pluginExport.name].init() ||
+                                pluginInstances[Plugin.name].init?.() ||
                                 Promise.resolve()
                             )
                         }
@@ -100,12 +154,12 @@ export class ImageOverview {
                     })
                 )
             })
-        )
+        ).then(() => undefined)
     }
 
     //delete image
-    deleteImage(ids) {
-        ids = ids.map(id => Number.parseInt(id))
+    deleteImage(ids: (string | number)[]): void {
+        const numericIds = ids.map(id => Number.parseInt(String(id)))
         if (this.app.isOffline()) {
             addAlert(
                 "error",
@@ -116,7 +170,7 @@ export class ImageOverview {
             return
         }
         activateWait()
-        post("/api/usermedia/delete/", {ids})
+        post("/api/usermedia/delete/", {ids: numericIds})
             .catch(error => {
                 addAlert("error", gettext("The image(s) could not be deleted"))
                 deactivateWait()
@@ -132,14 +186,14 @@ export class ImageOverview {
                 }
             })
             .then(() => {
-                ids.forEach(id => delete this.app.imageDB.db[id])
-                this.removeTableRows(ids)
+                numericIds.forEach(id => delete this.app.imageDB.db[id])
+                this.removeTableRows(numericIds)
                 addAlert("success", gettext("The image(s) have been deleted"))
             })
             .then(() => deactivateWait())
     }
 
-    deleteImageDialog(ids) {
+    deleteImageDialog(ids: (string | number)[]): void {
         const buttons = [
             {
                 text: gettext("Delete"),
@@ -150,7 +204,7 @@ export class ImageOverview {
                 }
             },
             {
-                type: "cancel"
+                type: "cancel" as const
             }
         ]
         const dialog = new Dialog({
@@ -163,24 +217,29 @@ export class ImageOverview {
         dialog.open()
     }
 
-    updateTable(ids) {
+    updateTable(ids: (string | number)[]): void {
         // Remove items that already exist
         this.removeTableRows(ids)
-        this.table.insert({data: ids.map(id => this.createTableRow(id))})
-        // Redo last sort
-        this.table.columns.sort(this.lastSort.column, this.lastSort.dir)
+        if (this.table) {
+            this.table.insert({
+                data: ids.map(id => this.createTableRow(Number(id)))
+            })
+            // Redo last sort
+            this.table.columns.sort(this.lastSort.column, this.lastSort.dir)
+        }
     }
 
-    createTableRow(id) {
+    createTableRow(id: number): ImageTableRow {
         const image = this.app.imageDB.db[id]
         const cats = image.cats.map(cat => `cat_${cat}`)
 
-        let fileType = image.file_type.split("/")
+        const fileTypeParts = image.file_type.split("/")
 
-        if (1 < fileType.length) {
-            fileType = fileType[1].toUpperCase()
+        let fileType: string
+        if (1 < fileTypeParts.length) {
+            fileType = fileTypeParts[1].toUpperCase()
         } else {
-            fileType = fileType[0].toUpperCase()
+            fileType = fileTypeParts[0].toUpperCase()
         }
 
         return [
@@ -203,26 +262,32 @@ export class ImageOverview {
         ]
     }
 
-    removeTableRows(ids) {
-        ids = ids.map(id => Number.parseInt(id))
+    removeTableRows(ids: (string | number)[]): void {
+        const numericIds = ids.map(id => Number.parseInt(String(id)))
+
+        if (!this.table) {
+            return
+        }
 
         const existingRows = this.table.data.data
-            .map((row, index) => {
-                const id = row.cells[0].data
-                if (ids.includes(id)) {
+            .map((row: DataTableRow, index: number) => {
+                const id = Number(row.cells[0].data)
+                if (numericIds.includes(id)) {
                     return index
                 } else {
                     return false
                 }
             })
-            .filter(rowIndex => rowIndex !== false)
+            .filter(
+                (rowIndex): rowIndex is number => rowIndex !== false
+            )
 
         if (existingRows.length) {
             this.table.rows.remove(existingRows)
         }
     }
 
-    onResize() {
+    onResize(): void {
         if (!this.table) {
             return
         }
@@ -230,7 +295,7 @@ export class ImageOverview {
     }
 
     /* Initialize the overview table */
-    initTable(ids) {
+    initTable(ids: string[]): void {
         if (this.overviewTable) {
             this.overviewTable.destroy()
             this.overviewTable = null
@@ -238,10 +303,13 @@ export class ImageOverview {
         this.table = null
         this.dtBulk = null
 
-        const contentsEl = this.dom.querySelector(".fw-contents")
+        const contentsEl = this.dom.querySelector(".fw-contents") as HTMLElement | null
+        if (!contentsEl) {
+            return
+        }
         contentsEl.innerHTML = ""
 
-        const hiddenCols = [0]
+        const hiddenCols: number[] = [0]
 
         if (window.innerWidth < 500) {
             hiddenCols.push(1)
@@ -272,11 +340,11 @@ export class ImageOverview {
                     sort: this.lastSort.dir
                 }
             ],
-            data: ids.map(id => this.createTableRow(id)),
+            data: ids.map(id => this.createTableRow(Number.parseInt(id))),
             idColumn: 0,
             checkboxColumn: 1,
             bulkMenu: bulkMenuModel(),
-            bulkMenuPage: this,
+            bulkMenuPage: this as Record<string, unknown>,
             searchable: true,
             scrollY: `${Math.max(window.innerHeight - 360, 100)}px`,
             tabIndex: 1,
@@ -292,7 +360,7 @@ export class ImageOverview {
                 gettext("Added"),
                 ""
             ],
-            template: (options, _dom) =>
+            template: (options: {classes: Record<string, string>; scrollY: string; paging?: boolean}, _dom) =>
                 `<div class='${options.classes.container}'${options.scrollY.length ? ` style='height: ${options.scrollY}; overflow-Y: auto;'` : ""}></div>
             <div class='${options.classes.bottom}'>
                 ${
@@ -303,20 +371,23 @@ export class ImageOverview {
                 <nav class='${options.classes.pagination}'></nav>
             </div>`,
             rowRender: (row, tr, _index) => {
-                const id = row.cells[0].data
-                const inputNode = {
+                const id = row.cells[0].data as number
+                const inputNode: VirtualNode = {
                     nodeName: "input",
                     attributes: {
                         type: "checkbox",
                         class: "entry-select fw-check",
-                        "data-id": id,
+                        "data-id": String(id),
                         id: `doc-img-${id}`
                     }
                 }
                 if (row.cells[1].data) {
-                    inputNode.attributes.checked = true
+                    inputNode.attributes!.checked = "checked"
                 }
-                tr.childNodes[0].childNodes = [
+                const trNode = tr as {
+                    childNodes: {childNodes: VirtualNode[]}[]
+                }
+                trNode.childNodes[0].childNodes = [
                     inputNode,
                     {
                         nodeName: "label",
@@ -330,39 +401,46 @@ export class ImageOverview {
                 if (this.getSelected().length > 0) {
                     return
                 }
-                const rowIndex = this.table.data.data.indexOf(row)
+                if (!this.table) {
+                    return
+                }
+                const rowIndex = this.table.data.data.findIndex(
+                    dataRow =>
+                        (dataRow as unknown as DataTableRow).cells[0].data ===
+                        row.cells[0].data
+                )
                 const button = this.table.dom.querySelector(
                     `tr[data-index="${rowIndex}"] span.edit-image`
                 )
                 if (button) {
-                    button.click()
+                    ;(button as HTMLElement).click()
                 }
             },
             onDelete: row => {
-                const imageId = row.cells[0].data
+                const imageId = row.cells[0].data as number
                 this.deleteImageDialog([imageId])
             }
         })
         this.overviewTable.init()
-        this.table = this.overviewTable.table
-        this.table.id = "imagelist"
-        this.dtBulk = this.overviewTable.dtBulk
+        this.table = this.overviewTable.table!
+        ;(this.table as unknown as {id: string}).id = "imagelist"
+        this.dtBulk = this.overviewTable.dtBulk || null
 
         this.table.on("datatable.sort", (column, dir) => {
-            this.lastSort = {column, dir}
+            this.lastSort = {column: column as number, dir: dir as "asc" | "desc"}
         })
 
         this.table.dom.focus()
     }
 
     // get IDs of selected bib entries
-    getSelected() {
+    getSelected(): number[] {
         return Array.from(
             this.dom.querySelectorAll(".entry-select:checked:not(:disabled)")
-        ).map(el => Number.parseInt(el.getAttribute("data-id")))
+        ).map(el => Number.parseInt(el.getAttribute("data-id") || "0"))
     }
 
-    bindEvents() {
+    bindEvents(): void {
         this.dom.addEventListener("click", event =>
             this.handleActivation(event)
         )
@@ -371,33 +449,37 @@ export class ImageOverview {
         )
     }
 
-    handleActivation(event) {
+    handleActivation(event: Event): void {
         if (!isActivationEvent(event)) {
             return
         }
-        const el = {}
+        const el: {target?: Element | null} = {}
         switch (true) {
             case findTarget(event, ".delete-image", el): {
-                const imageId = el.target.dataset.id
-                this.deleteImageDialog([imageId])
+                const imageId = (el.target as HTMLElement | null)?.dataset.id
+                this.deleteImageDialog([imageId || ""])
                 break
             }
             case findTarget(event, ".edit-image", el): {
-                const imageId = el.target.dataset.id
-                import("../edit_dialog/index.js").then(({ImageEditDialog}) => {
-                    const dialog = new ImageEditDialog(
-                        this.app.imageDB,
-                        imageId,
-                        this
-                    )
-                    dialog.init().then(() => {
-                        this.updateTable([imageId])
-                    })
-                })
+                const imageId = (el.target as HTMLElement | null)?.dataset.id
+                import("../edit_dialog/index.js").then(
+                    ({ImageEditDialog}) => {
+                        const dialog = new ImageEditDialog(
+                            this.app.imageDB,
+                            imageId ? Number.parseInt(imageId) : false,
+                            this as unknown as ImageManagerPage
+                        )
+                        dialog.init().then(() => {
+                            if (imageId) {
+                                this.updateTable([Number.parseInt(imageId)])
+                            }
+                        })
+                    }
+                )
                 break
             }
             case findTarget(event, ".fw-add-input", el): {
-                const itemEl = el.target.closest(".fw-list-input")
+                const itemEl = (el.target as HTMLElement | null)?.closest(".fw-list-input") as HTMLElement
                 if (!itemEl.nextElementSibling) {
                     itemEl.insertAdjacentHTML(
                         "afterend",
@@ -409,7 +491,7 @@ export class ImageOverview {
                         </tr>`
                     )
                 } else {
-                    itemEl.parentElement.removeChild(itemEl)
+                    itemEl.parentElement!.removeChild(itemEl)
                 }
                 break
             }
@@ -418,7 +500,7 @@ export class ImageOverview {
         }
     }
 
-    close() {
+    close(): void {
         if (this.table) {
             this.table.destroy()
             this.table = null
@@ -429,7 +511,7 @@ export class ImageOverview {
         }
         if (this.menu) {
             this.menu.destroy()
-            this.menu = null
+            this.menu = null as unknown as OverviewMenuView
         }
     }
 }

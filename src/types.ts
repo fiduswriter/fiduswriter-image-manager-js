@@ -1,0 +1,133 @@
+import type {DataTable} from "simple-datatables"
+import type {ImageDB} from "./database.js"
+
+/** A single license under which an image is available. */
+export interface License {
+    url: string
+    title: string
+    start?: string | false
+}
+
+/** Copyright and licensing information for an image. */
+export interface Copyright {
+    holder?: string | false
+    year?: number | false
+    freeToRead: boolean
+    licenses: License[]
+}
+
+/** A category used to group images. */
+export interface ImageCategory {
+    id: number
+    category_title: string
+}
+
+/** A single image as stored in the client-side image database. */
+export interface Image {
+    id: number
+    title: string
+    file_type: string
+    image: string
+    thumbnail?: string
+    width: number
+    height: number
+    added: number
+    cats: number[]
+    copyright: Copyright
+    [key: string]: unknown
+}
+
+/** End-to-end encryption context passed to dialogs that handle images. */
+export interface E2EEContext {
+    encrypted: boolean
+    key: CryptoKey
+}
+
+/** Subset of the main Fidus Writer app object used by image-manager code. */
+export interface ImageManagerApp {
+    imageDB: ImageDB
+    isOffline: () => boolean
+    settings: {
+        APPS: string[]
+        MEDIA_MAX_SIZE?: number
+        [key: string]: unknown
+    }
+    name: string
+    [key: string]: unknown
+}
+
+/** Page object passed to image dialogs. */
+export interface ImageManagerPage {
+    app: ImageManagerApp
+    e2ee?: E2EEContext
+    menu?: unknown
+    [key: string]: unknown
+}
+
+/** Plugin instance created by the overview's plugin activation. */
+export interface ImageOverviewPlugin {
+    init?: () => Promise<unknown> | unknown
+    [key: string]: unknown
+}
+
+/** Constructor for an image-overview plugin. */
+export interface ImageOverviewPluginConstructor {
+    new (overview: unknown): ImageOverviewPlugin
+}
+
+/** Row displayed in the image overview data table. */
+export type ImageTableRow = [
+    id: number,
+    selected: boolean,
+    file: string,
+    size: string,
+    added: string,
+    actions: string
+]
+
+/** An image selection item coming from either the document or user DB. */
+export interface ImageSelectionItem {
+    image: Image
+    db: "document" | "user"
+}
+
+/** Response body from `POST /api/usermedia/images/`. */
+export interface ImagesResponse {
+    imageCategories: ImageCategory[]
+    images: Image[]
+}
+
+/** Response body from `POST /api/usermedia/save/`. */
+export interface SaveImageResponse {
+    errormsg: Record<string, string> & {error?: string}
+    values: Image
+}
+
+/** Request body for `POST /api/usermedia/save/`. */
+export interface SaveImageRequest {
+    id?: number
+    title: string
+    copyright: Copyright | string
+    cats: (string | number)[]
+    image?: File | Blob
+    original_file_type?: string
+    [key: string]: unknown
+}
+
+/** Request body for `POST /api/usermedia/save_category/`. */
+export interface SaveCategoriesRequest {
+    ids: (string | number)[]
+    titles: string[]
+}
+
+/** Response body from `POST /api/usermedia/save_category/`. */
+export interface SaveCategoriesResponse {
+    entries: ImageCategory[]
+}
+
+/** Request body for `POST /api/usermedia/delete/`. */
+export interface DeleteImagesRequest {
+    ids: (string | number)[]
+}
+
+export type {DataTable}

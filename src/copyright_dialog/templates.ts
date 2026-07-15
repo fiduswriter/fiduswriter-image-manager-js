@@ -1,7 +1,23 @@
 import {escapeText} from "fwtoolkit"
+
 import {LICENSE_URLS} from "./index.js"
 
-export const licenseSelectTemplate = ({url}) =>
+interface LicenseSelectTemplateData {
+    url: string
+}
+
+interface LicenseInputTemplateData {
+    url: string
+    title: string
+}
+
+interface CopyrightTemplateData {
+    holder?: string | false
+    year?: number | false
+    freeToRead: boolean
+}
+
+export const licenseSelectTemplate = ({url}: LicenseSelectTemplateData) =>
     `<select class="license">
         <option value=""></option>
         ${LICENSE_URLS.map(
@@ -11,7 +27,7 @@ export const licenseSelectTemplate = ({url}) =>
     </select>
     <div class="fw-select-arrow fa fa-caret-down"></div>`
 
-export const licenseInputTemplate = ({url, title}) =>
+export const licenseInputTemplate = ({url, title}: LicenseInputTemplateData) =>
     `<div class="field-part field-part-huge">
         <input type='text' class='license' value="${escapeText(url)}" placeholder="${gettext("License URL")}">
     </div>
@@ -19,7 +35,7 @@ export const licenseInputTemplate = ({url, title}) =>
         <input type='text' class='license-title' value="${escapeText(title)}" placeholder="${gettext("License Title")}">
     </div>`
 
-export const copyrightTemplate = ({holder, year, freeToRead}) =>
+export const copyrightTemplate = ({holder, year, freeToRead}: CopyrightTemplateData) =>
     `<table class="fw-dialog-table">
         <tbody>
             <tr>

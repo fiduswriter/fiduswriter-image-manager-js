@@ -1,40 +1,56 @@
 import Cropper from "cropperjs"
 
 import {gettext} from "fwtoolkit"
-import {CopyrightDialog} from "@fiduswriter/image-manager/copyright_dialog/index"
+import type {ContentMenuInit} from "fwtoolkit/content_menu"
+import type {Dialog as FwDialog} from "fwtoolkit/dialog"
 
-let mediaPreviewerImg = false
+import {CopyrightDialog} from "../copyright_dialog/index.js"
+import type {ImageEditDialog} from "./index.js"
 
-export const imageEditModel = () => ({
+let mediaPreviewerImg: HTMLImageElement | false = false
+
+export const imageEditModel = (): ContentMenuInit => ({
     content: [
         {
             title: gettext("Rotate Left"),
             type: "action",
             tooltip: gettext("Rotate-left"),
             order: 0,
-            action: dialog => {
+            action: (dialog: unknown) => {
+                const d = dialog as ImageEditDialog
+                const mediaPreviewer = d.mediaPreviewer as
+                    | (HTMLElement & {
+                        currentStyle?: CSSStyleDeclaration
+                    })
+                    | undefined
+                if (!mediaPreviewer) {
+                    return
+                }
                 const mediaPreviewerStyle =
-                    dialog.mediaPreviewer.currentStyle ||
-                    window.getComputedStyle(dialog.mediaPreviewer, false)
+                    mediaPreviewer.currentStyle ||
+                    window.getComputedStyle(
+                        mediaPreviewer,
+                        false as unknown as string | null
+                    )
                 rotateBase64Image(
                     mediaPreviewerStyle.backgroundImage
                         .slice(4, -1)
                         .replace(/"/g, ""),
-                    dialog.mediaInput.type,
+                    d.mediaInput!.type,
                     "left"
                 ).then(response =>
-                    dialog.mediaPreviewer.setAttribute(
+                    d.mediaPreviewer!.setAttribute(
                         "style",
                         `background-image: url(${response});`
                     )
                 )
-                if (dialog.rotation === 0) {
-                    dialog.rotation = 270
+                if (d.rotation === 0) {
+                    d.rotation = 270
                 } else {
-                    dialog.rotation -= 90
+                    d.rotation -= 90
                 }
             },
-            disabled: dialog => dialog.imageId,
+            disabled: (dialog: unknown) => !!(dialog as ImageEditDialog).imageId,
             icon: "redo fa-rotate-180"
         },
         {
@@ -42,29 +58,41 @@ export const imageEditModel = () => ({
             type: "action",
             tooltip: gettext("Rotate-right"),
             order: 1,
-            action: dialog => {
+            action: (dialog: unknown) => {
+                const d = dialog as ImageEditDialog
+                const mediaPreviewer = d.mediaPreviewer as
+                    | (HTMLElement & {
+                        currentStyle?: CSSStyleDeclaration
+                    })
+                    | undefined
+                if (!mediaPreviewer) {
+                    return
+                }
                 const mediaPreviewerStyle =
-                    dialog.mediaPreviewer.currentStyle ||
-                    window.getComputedStyle(dialog.mediaPreviewer, false)
+                    mediaPreviewer.currentStyle ||
+                    window.getComputedStyle(
+                        mediaPreviewer,
+                        false as unknown as string | null
+                    )
                 rotateBase64Image(
                     mediaPreviewerStyle.backgroundImage
                         .slice(4, -1)
                         .replace(/"/g, ""),
-                    dialog.mediaInput.type,
+                    d.mediaInput!.type,
                     "right"
                 ).then(response =>
-                    dialog.mediaPreviewer.setAttribute(
+                    d.mediaPreviewer!.setAttribute(
                         "style",
                         `background-image: url(${response});`
                     )
                 )
-                if (dialog.rotation === 270) {
-                    dialog.rotation = 0
+                if (d.rotation === 270) {
+                    d.rotation = 0
                 } else {
-                    dialog.rotation += 90
+                    d.rotation += 90
                 }
             },
-            disabled: dialog => dialog.imageId,
+            disabled: (dialog: unknown) => !!(dialog as ImageEditDialog).imageId,
             icon: "undo"
         },
         {
@@ -72,27 +100,39 @@ export const imageEditModel = () => ({
             type: "action",
             tooltip: gettext("Crop image"),
             order: 2,
-            action: dialog => {
+            action: (dialog: unknown) => {
+                const d = dialog as ImageEditDialog
+                const mediaPreviewer = d.mediaPreviewer as
+                    | (HTMLElement & {
+                        currentStyle?: CSSStyleDeclaration
+                    })
+                    | undefined
+                if (!mediaPreviewer) {
+                    return
+                }
                 const mediaPreviewerStyle =
-                    dialog.mediaPreviewer.currentStyle ||
-                    window.getComputedStyle(dialog.mediaPreviewer, false)
+                    mediaPreviewer.currentStyle ||
+                    window.getComputedStyle(
+                        mediaPreviewer,
+                        false as unknown as string | null
+                    )
                 //const base64data = mediaPreviewerStyle.backgroundImage.slice(4, -1).replace(/"/g, "")
                 mediaPreviewerImg = document.createElement("img")
                 //img.src = `url(${base64data})`
                 mediaPreviewerImg.src = mediaPreviewerStyle.backgroundImage
                     .slice(4, -1)
                     .replace(/"/g, "")
-                dialog.mediaPreviewer.parentElement.replaceChild(
+                d.mediaPreviewer!.parentElement!.replaceChild(
                     mediaPreviewerImg,
-                    dialog.mediaPreviewer
+                    d.mediaPreviewer!
                 )
                 const cropper = new Cropper(mediaPreviewerImg, {
                     viewMode: 1,
                     responsive: true
                 })
-                toggleCropMode(true, dialog, cropper)
+                toggleCropMode(true, d, cropper)
             },
-            disabled: dialog => dialog.imageId,
+            disabled: (dialog: unknown) => !!(dialog as ImageEditDialog).imageId,
             icon: "crop"
         },
         {
@@ -100,11 +140,12 @@ export const imageEditModel = () => ({
             type: "action",
             tooltip: gettext("Specify copyright information"),
             order: 3,
-            action: dialog => {
-                const crDialog = new CopyrightDialog(dialog.copyright)
+            action: (dialog: unknown) => {
+                const d = dialog as ImageEditDialog
+                const crDialog = new CopyrightDialog(d.copyright)
                 crDialog.init().then(copyright => {
                     if (copyright) {
-                        dialog.copyright = copyright
+                        d.copyright = copyright
                     }
                 })
             }
@@ -112,21 +153,25 @@ export const imageEditModel = () => ({
     ]
 })
 
-let oldButtons = false
+let oldButtons: FwDialog["buttons"] | false = false
 
-const toggleCropMode = (val, dialog, cropper) => {
+const toggleCropMode = (val: boolean, dialog: ImageEditDialog, cropper: Cropper) => {
+    if (!dialog.dialog) {
+        return
+    }
+    const dialogEl = dialog.dialog
     if (val && !oldButtons) {
-        dialog.mediaPreviewerDiv.classList.add("crop-mode")
-        oldButtons = dialog.dialog.buttons
-        dialog.dialog.setButtons([
+        dialog.mediaPreviewerDiv!.classList.add("crop-mode")
+        oldButtons = dialogEl.buttons
+        dialogEl.setButtons([
             {
                 text: gettext("Crop"),
                 click: () => {
-                    dialog.mediaPreviewer.setAttribute(
+                    dialog.mediaPreviewer!.setAttribute(
                         "style",
                         `background-image: url(${cropper
                             .getCroppedCanvas()
-                            .toDataURL(dialog.mediaInput.type)});`
+                            .toDataURL(dialog.mediaInput!.type)});`
                     )
                     dialog.cropped = true
                     cropper.destroy()
@@ -144,27 +189,31 @@ const toggleCropMode = (val, dialog, cropper) => {
             }
         ])
     } else {
-        dialog.mediaPreviewerDiv.classList.remove("crop-mode")
+        dialog.mediaPreviewerDiv!.classList.remove("crop-mode")
         if (mediaPreviewerImg) {
-            mediaPreviewerImg.parentElement.replaceChild(
-                dialog.mediaPreviewer,
+            mediaPreviewerImg.parentElement!.replaceChild(
+                dialog.mediaPreviewer!,
                 mediaPreviewerImg
             )
             mediaPreviewerImg = false
         }
         if (oldButtons) {
-            dialog.dialog.buttons = oldButtons
+            dialogEl.buttons = oldButtons
             oldButtons = false
         }
     }
-    dialog.dialog.refreshButtons()
-    dialog.dialog.centerDialog()
+    dialogEl.refreshButtons()
+    dialogEl.centerDialog()
 }
 
-const rotateBase64Image = (base64data, type, direction) => {
+const rotateBase64Image = (
+    base64data: string,
+    type: string,
+    direction: "left" | "right"
+): Promise<string> => {
     return new Promise(resolve => {
         const canvas = document.createElement("canvas")
-        const ctx = canvas.getContext("2d")
+        const ctx = canvas.getContext("2d")!
         const image = new Image()
         image.src = base64data
         image.onload = () => {
