@@ -69,6 +69,8 @@ export class ImageOverview {
 
   dtBulk: import("fwtoolkit").DatatableBulk | null = null;
 
+  _boundHandleActivation?: (event: Event) => void;
+
   constructor({
     app,
     container,
@@ -428,10 +430,10 @@ export class ImageOverview {
   }
 
   bindEvents(): void {
-    this.dom.addEventListener("click", (event) => this.handleActivation(event));
-    this.dom.addEventListener("keydown", (event) =>
-      this.handleActivation(event),
-    );
+    const handler = (event: Event) => this.handleActivation(event);
+    document.body.addEventListener("click", handler);
+    document.body.addEventListener("keydown", handler);
+    this._boundHandleActivation = handler;
   }
 
   handleActivation(event: Event): void {
@@ -497,6 +499,11 @@ export class ImageOverview {
     if (this.menu) {
       this.menu.destroy();
       this.menu = null as unknown as OverviewMenuView;
+    }
+    if (this._boundHandleActivation) {
+      document.body.removeEventListener("click", this._boundHandleActivation);
+      document.body.removeEventListener("keydown", this._boundHandleActivation);
+      this._boundHandleActivation = undefined;
     }
   }
 }
