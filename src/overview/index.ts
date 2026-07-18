@@ -496,7 +496,7 @@ export class ImageOverview {
                         </tr>`,
           );
           const newInput = (
-            itemEl.nextElementSibling as HTMLElement
+            itemEl.nextElementSibling as unknown as HTMLElement
           )?.querySelector(".category-form") as HTMLInputElement | null;
           newInput?.focus();
         }
