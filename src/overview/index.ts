@@ -495,9 +495,9 @@ export class ImageOverview {
                             </td>
                         </tr>`,
           );
-          const newInput = itemEl.nextElementSibling?.querySelector(
-            ".category-form",
-          ) as HTMLInputElement | null;
+          const newInput = (
+            itemEl.nextElementSibling as HTMLElement
+          )?.querySelector(".category-form") as HTMLInputElement | null;
           newInput?.focus();
         }
         break;
