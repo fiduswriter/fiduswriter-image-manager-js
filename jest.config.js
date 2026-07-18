@@ -62,8 +62,8 @@ export default {
     "^jszip$": "<rootDir>/test/mocks/jszip.js",
     "^citeproc-plus$": "<rootDir>/test/mocks/citeproc-plus.js",
     "^citeproc-plus/.*": "<rootDir>/test/mocks/citeproc-plus.js",
-    "^@fiduswriter/common$": "<rootDir>/test/mocks/common.js",
-    "^@fiduswriter/common/.*": "<rootDir>/test/mocks/common.js",
+    "^@fiduswriter/frontend$": "<rootDir>/test/mocks/common.js",
+    "^@fiduswriter/frontend/.*": "<rootDir>/test/mocks/common.js",
     "^@fiduswriter/document$": "<rootDir>/test/mocks/document.js",
     "^@fiduswriter/document/.*": "<rootDir>/test/mocks/document.js",
     "^@fiduswriter/bibliography-manager$":
