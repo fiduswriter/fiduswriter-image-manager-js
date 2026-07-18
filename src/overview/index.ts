@@ -286,12 +286,7 @@ export class ImageOverview {
     this.table = null;
     this.dtBulk = null;
 
-    const contentsEl = this.dom.querySelector(
-      ".fw-contents",
-    ) as HTMLElement | null;
-    if (!contentsEl) {
-      return;
-    }
+    const contentsEl = this.dom as HTMLElement;
     contentsEl.innerHTML = "";
 
     const hiddenCols: number[] = [0];
