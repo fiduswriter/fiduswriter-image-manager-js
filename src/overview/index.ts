@@ -484,6 +484,10 @@ export class ImageOverview {
       }
       case event.type === "keydown" &&
         (event.target as Element).matches(".category-form"): {
+        const input = event.target as HTMLInputElement;
+        if (!input.value.trim().length) {
+          break;
+        }
         const itemEl = (event.target as HTMLElement).closest(".fw-list-input");
         if (itemEl && !itemEl.nextElementSibling) {
           itemEl.insertAdjacentHTML(
