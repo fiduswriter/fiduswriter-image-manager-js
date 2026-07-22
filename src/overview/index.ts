@@ -11,7 +11,6 @@ import {
   gettext,
   isActivationEvent,
   localizeDate,
-  post,
   setDocTitle,
   staticUrl,
   whenReady,
@@ -157,7 +156,8 @@ export class ImageOverview {
       return;
     }
     activateWait();
-    post("/api/usermedia/delete/", { ids: numericIds })
+    this.app.apiConnectors.image
+      .deleteImages(numericIds)
       .catch((error) => {
         addAlert("error", gettext("The image(s) could not be deleted"));
         deactivateWait();

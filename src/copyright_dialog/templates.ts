@@ -1,42 +1,49 @@
-import {escapeText} from "fwtoolkit"
+import { escapeText } from "fwtoolkit";
 
-import {LICENSE_URLS} from "./index.js"
+import { LICENSE_URLS } from "./index.js";
 
 interface LicenseSelectTemplateData {
-    url: string
+  url: string;
 }
 
 interface LicenseInputTemplateData {
-    url: string
-    title: string
+  url: string;
+  title: string;
 }
 
 interface CopyrightTemplateData {
-    holder?: string | false
-    year?: number | false
-    freeToRead: boolean
+  holder?: string | false;
+  year?: number | false;
+  freeToRead: boolean;
 }
 
-export const licenseSelectTemplate = ({url}: LicenseSelectTemplateData) =>
-    `<select class="license">
+export const licenseSelectTemplate = ({ url }: LicenseSelectTemplateData) =>
+  `<select class="license">
         <option value=""></option>
         ${LICENSE_URLS.map(
-            licenseUrl =>
-                `<option value="${licenseUrl[1]}"${url === licenseUrl[1] ? " selected" : ""}>${licenseUrl[0]}</option>`
+          (licenseUrl) =>
+            `<option value="${licenseUrl[1]}"${url === licenseUrl[1] ? " selected" : ""}>${licenseUrl[0]}</option>`,
         ).join("")}
     </select>
-    <div class="fw-select-arrow fa fa-caret-down"></div>`
+    <div class="fw-select-arrow fa fa-caret-down"></div>`;
 
-export const licenseInputTemplate = ({url, title}: LicenseInputTemplateData) =>
-    `<div class="field-part field-part-huge">
+export const licenseInputTemplate = ({
+  url,
+  title,
+}: LicenseInputTemplateData) =>
+  `<div class="field-part field-part-huge">
         <input type='text' class='license' value="${escapeText(url)}" placeholder="${gettext("License URL")}">
     </div>
     <div class="field-part field-part-huge">
         <input type='text' class='license-title' value="${escapeText(title)}" placeholder="${gettext("License Title")}">
-    </div>`
+    </div>`;
 
-export const copyrightTemplate = ({holder, year, freeToRead}: CopyrightTemplateData) =>
-    `<table class="fw-dialog-table">
+export const copyrightTemplate = ({
+  holder,
+  year,
+  freeToRead,
+}: CopyrightTemplateData) =>
+  `<table class="fw-dialog-table">
         <tbody>
             <tr>
                 <th><h4 class="fw-tablerow-title fw-wtooltip">
@@ -69,4 +76,4 @@ export const copyrightTemplate = ({holder, year, freeToRead}: CopyrightTemplateD
                 </td>
             </tr>
         </tbody>
-    </table>`
+    </table>`;
