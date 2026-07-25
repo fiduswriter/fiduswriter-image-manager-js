@@ -90,7 +90,7 @@ export class ImageOverview {
   init(): Promise<void> {
     ensureCSS([
       staticUrl("css/dialog_usermedia.css"),
-      staticUrl("css/dot_menu.css"),
+      staticUrl("css/editor/dot_menu.css"),
     ]);
 
     return whenReady().then(() => {
